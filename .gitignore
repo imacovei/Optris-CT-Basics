@@ -3,6 +3,7 @@
 **/*.vsp
 **/*.psess
 **/.vs/
+**/.vscode/
 **/[C|c]ertificates/
 
 #taken from visualstudio.gitignore on github, modified for subdirs
