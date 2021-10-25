@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "OptrisCT.cmd": {
+      "commandName": "Project",
+      "commandLineArgs": "-p COM7 -d 10000 -a \"1\" -o temperature -c \"-0,7\""
+    }
+  }
+}
