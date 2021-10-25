@@ -1,6 +1,8 @@
-# Some basic code samples to help starting working with the Optris CT devices
----
+# Some basic code samples to help geting started with the Optris CT devices
+
 ## Table of Contents
+- [Some basic code samples to help geting started with the Optris CT devices](#some-basic-code-samples-to-help-geting-started-with-the-optris-ct-devices)
+  - [Table of Contents](#table-of-contents)
 - [Aim](#aim)
 - [Some technical aspects](#some-technical-aspects)
 - [Projects](#projects)
