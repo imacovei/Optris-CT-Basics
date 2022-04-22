@@ -6,11 +6,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CommandLineParser" Version="2.8.0" />
     <PackageReference Include="Newtonsoft.Json" Version="9.0.1" />
+    <PackageReference Include="System.CommandLine.Hosting" Version="0.4.0-alpha.22114.1" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\CLI\CLI.csproj" />
+    <ProjectReference Include="..\IPC\IPC.csproj" />
     <ProjectReference Include="..\OptrisCT\OptrisCT.csproj" />
   </ItemGroup>
 

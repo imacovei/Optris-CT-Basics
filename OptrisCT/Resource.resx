@@ -129,4 +129,10 @@
   <data name="ERR_CANNOT_OPEN_COM_PORT" xml:space="preserve">
     <value>Cannot open the COM port. {0}</value>
   </data>
+  <data name="ERR_INCONSISTENT_PARAMATERS_COUNT" xml:space="preserve">
+    <value>Provided parameters are inconsistent. The count of temperature correction values must be equal to the count of addresses</value>
+  </data>
+  <data name="ERR_INCONSISTENT_PARAMETERS_MISSING" xml:space="preserve">
+    <value>Provided parameters are inconsistent. Each address must have a temperature correction value</value>
+  </data>
 </root>

@@ -3,12 +3,12 @@
 // Copyright (c) 2021 All Rights Reserved
 // </copyright>
 // <author>Iulian Macovei</author>
-// <date>10/25/2021 11:02:28 AM</date>
+// <date>04/22/2022 21:12:28 AM</date>
 // ----------------------------------------------------------------------------
 
 #region License
 // ----------------------------------------------------------------------------
-// Copyright 2021 Iulian Macovei
+// Copyright 2022 Iulian Macovei
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -29,14 +29,14 @@
 // THE SOFTWARE.
 #endregion
 
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO.Ports;
+using System.Linq;
+using System.Threading;
 namespace OptrisCT
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Diagnostics;
-    using System.IO.Ports;
-    using System.Linq;
-    using System.Threading;
 
     /// <summary>
     /// Optris CT Manager
@@ -61,7 +61,9 @@ namespace OptrisCT
             ReadSerialNumber = 0x0E,
             ReadFwVersion = 0x0F,
             ReadEmissivity = 0x04,
-            SetEmissivity = 0x84
+            SetEmissivity = 0x84,
+            ReadTransmissivity = 0x05,
+            SetTransmissivity = 0x85,
         }
 
         /// <summary>
@@ -225,12 +227,46 @@ namespace OptrisCT
         }
 
         /// <summary>
+        /// Reads the transmissivity value from the device
+        /// </summary>
+        /// <returns>read value</returns>
+        public float ReadTransmissivity()
+        {
+            bool readResult = this.ExecuteReadCommand(OptrisCommands.ReadTransmissivity, 1000, 2, null);
+            return !readResult ? float.MinValue : ConvertToFloat(this.readBytes);
+        }
+
+        /// <summary>
+        /// Sets the given transmissivity value onto the device
+        /// </summary>
+        /// <param name="value">new transmissivity value</param>
+        /// <returns>true on success, otherwise false</returns>
+        public bool SetTransmissivity(float value)
+        {
+            if (value == float.MinValue)
+            {
+                return false;
+            }
+
+            byte[] byteValue = BitConverter.GetBytes((short)(value * 1000));
+            bool setResult = this.ExecuteWriteCommand(OptrisCommands.SetTransmissivity, byteValue, 1000, 2);
+            if (!setResult)
+            {
+                return false;
+            }
+
+            this.readBytes.Reverse();
+            return this.readBytes.SequenceEqual(byteValue);
+        }
+
+        /// <summary>
         /// Monitors the temperature for the specified duration (in milliseconds)
         /// Use it on the objects that initialize one single address
         /// </summary>
         /// <param name="durationMs">For how long (in milliseconds) the temperature will be monitored</param>
+        /// <param name="temperatureCorrectionValue">correction value in °C</param>
         /// <returns>List of pairs time-temperature</returns>
-        public Dictionary<long, decimal> MonitorTemperature(int durationMs)
+        public Dictionary<long, decimal> MonitorTemperature(int durationMs, decimal temperatureCorrectionValue)
         {
             Dictionary<long, decimal> measurements = new Dictionary<long, decimal>();
 
@@ -240,7 +276,7 @@ namespace OptrisCT
             {
                 if (ExecuteReadCommand(OptrisCommands.ReadTemperature, 1000, 2, null))
                 {
-                    measurements.Add(stopwatch.ElapsedMilliseconds, ConvertToCelsius(this.readBytes));
+                    measurements.Add(stopwatch.ElapsedMilliseconds, ConvertToCelsius(this.readBytes) + temperatureCorrectionValue);
                 }
             }
 
@@ -254,16 +290,26 @@ namespace OptrisCT
         /// </summary>
         /// <param name="durationMs">For how long (in milliseconds) the temperature will be monitored</param>
         /// <returns>For each address, a list of pairs time-temperature</returns>
-        public Dictionary<byte, Dictionary<long, decimal>> MonitorTemperatureLineMode(int durationMs)
+        public Dictionary<byte, Dictionary<long, decimal>> MonitorTemperatureLineMode(int durationMs, Dictionary<byte, decimal> temperatureCorrectionValues)
         {
             Dictionary<byte, Dictionary<long, decimal>> measurements = new Dictionary<byte, Dictionary<long, decimal>>();
+
+            if (temperatureCorrectionValues.Count != this.multiAddressList.Count)
+            {
+                throw new ArgumentException(Resource.ERR_INCONSISTENT_PARAMATERS_COUNT);
+            }
+
+            if (this.multiAddressList.Any(address => !temperatureCorrectionValues.ContainsKey(address)))
+            {
+                throw new ArgumentException(Resource.ERR_INCONSISTENT_PARAMETERS_MISSING);
+            }
 
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
 
-            // in case of line read we read the temperature from all Optris-CT devices in one go
-            // and the multiAddress is a kind of broadcast address set to 0
-            this.multiAddress = 0;
+            // in case of line read we read the temperature from all Optris devices in one go
+            // and the multiAddress is a kind of broadcast address set to 0xB0
+            this.multiAddress = 0xB0;
 
             while (stopwatch.ElapsedMilliseconds < durationMs)
             {
@@ -272,11 +318,9 @@ namespace OptrisCT
 
                 // the index of the last address to read from, so subtract the 0xB0 to get the index
                 byte lastAddressIndex = (this.multiAddressList.Max());
-                
+
+
                 // if we read the temperature in line mode we need to provide the checksum
-                // the Optris documentation specifies that the checksum is needed only for write commands
-                // but this is not quite correct.
-                // all multi-line read operations need the checksum too
                 byte checksum = CalculateChecksum(new List<byte>() { (byte)OptrisCommands.ReadTemperatureLineMode, lastAddressIndex });
 
                 List<byte> suffixBytes = new List<byte>() { lastAddressIndex, checksum };
@@ -288,6 +332,11 @@ namespace OptrisCT
                     Dictionary<byte, decimal> allTemperatures = SplitReadTemperatures();
                     foreach ((byte address, decimal value) in allTemperatures)
                     {
+                        if (temperatureCorrectionValues.ContainsKey(address))
+                        {
+                            correctionValue = temperatureCorrectionValues[address];
+                        }
+
                         if (!measurements.ContainsKey(address))
                         {
                             measurements.Add(address, new Dictionary<long, decimal>());
@@ -479,6 +528,8 @@ namespace OptrisCT
             {
                 this.serialPort.Close();
             }
+
+            GC.SuppressFinalize(this);
         }
     }
 }

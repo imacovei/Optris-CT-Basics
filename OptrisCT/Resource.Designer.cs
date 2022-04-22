@@ -88,6 +88,24 @@ namespace OptrisCT {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Provided parameters are inconsistent. The count of temperature correction values must be equal to the count of addresses.
+        /// </summary>
+        internal static string ERR_INCONSISTENT_PARAMATERS_COUNT {
+            get {
+                return ResourceManager.GetString("ERR_INCONSISTENT_PARAMATERS_COUNT", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Provided parameters are inconsistent. Each address must have a temperature correction value.
+        /// </summary>
+        internal static string ERR_INCONSISTENT_PARAMETERS_MISSING {
+            get {
+                return ResourceManager.GetString("ERR_INCONSISTENT_PARAMETERS_MISSING", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Invalid value for OPTRIS-CT address. Min: 1, max: {0}. Provided: {1}.
         /// </summary>
         internal static string ERR_INVALID_ADDRESS_IN_LIST {
