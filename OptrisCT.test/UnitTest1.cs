@@ -1,14 +1,14 @@
-// ----------------------------------------------------------------------------
+﻿// ----------------------------------------------------------------------------
 // <copyright file="OptrisCtManager.cs" company="Private">
 // Copyright (c) 2021 All Rights Reserved
 // </copyright>
 // <author>Iulian Macovei</author>
-// <date>10/25/2021 4:35:28 PM</date>
+// <date>04/22/2022 21:12:28 AM</date>
 // ----------------------------------------------------------------------------
 
 #region License
 // ----------------------------------------------------------------------------
-// Copyright 2021 Iulian Macovei
+// Copyright 2022 Iulian Macovei
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -29,11 +29,10 @@
 // THE SOFTWARE.
 #endregion
 
+using Xunit;
 
 namespace OptrisCT.test
 {
-    using Xunit;
-
     public class UnitTest1
     {
         [Fact]
