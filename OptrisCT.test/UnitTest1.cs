@@ -29,16 +29,104 @@
 // THE SOFTWARE.
 #endregion
 
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 using Xunit;
+
+// as we access the serial port as shared resource, we can't let xunit run the test in parallel
+// ergo: disable the parallel execution of the tests:
+[assembly: CollectionBehavior(DisableTestParallelization = true)]
 
 namespace OptrisCT.test
 {
     public class UnitTest1
     {
-        [Fact]
-        public void Test1()
-        {
+        private const string ComPort = "COM8";
+        private const byte Address = 1;
 
+        [Fact]
+        public void TestSerialNumber()
+        {
+            int sn;
+            using (OptrisCtManager mgr = new OptrisCtManager(ComPort, Address))
+            {
+                sn = mgr.ReadSerialNumber();
+            }
+
+            Assert.NotEqual(0, sn);
+        }
+
+        [Fact]
+        public void TestFwVersion()
+        {
+            int fwVersion;
+            using (OptrisCtManager mgr = new OptrisCtManager(ComPort, Address))
+            {
+                fwVersion = mgr.ReadFwVersion();
+            }
+
+            Assert.NotEqual(0, fwVersion);
+        }
+
+        [Fact]
+        public void TestReadEmissivity()
+        {
+            float emissivity;
+            using (OptrisCtManager mgr = new OptrisCtManager(ComPort, Address))
+            {
+                emissivity = mgr.ReadEmissivity();
+            }
+
+            Assert.NotEqual(0, emissivity);
+        }
+
+        [Fact]
+        public void TestWriteEmissivity()
+        {
+            bool emissivity;
+            using (OptrisCtManager mgr = new OptrisCtManager(ComPort, Address))
+            {
+                emissivity = mgr.SetEmissivity(0.99F);
+            }
+
+            Assert.True(emissivity);
+        }
+
+        [Fact]
+        public void TestReadTransmissivity()
+        {
+            float transmissivity;
+            using (OptrisCtManager mgr = new OptrisCtManager(ComPort, Address))
+            {
+                transmissivity = mgr.ReadTransmissivity();
+            }
+
+            Assert.NotEqual(0, transmissivity);
+        }
+
+        [Fact]
+        public void TestWriteTransmissivity()
+        {
+            bool transmissivity;
+            using (OptrisCtManager mgr = new OptrisCtManager(ComPort, Address))
+            {
+                transmissivity = mgr.SetTransmissivity(0.99F);
+            }
+
+            Assert.True(transmissivity);
+        }
+
+        [Fact]
+        public void TestMonitorTemperatures()
+        {
+            Dictionary<long, decimal> temperatures;
+            using (OptrisCtManager mgr = new OptrisCtManager(ComPort, Address))
+            {
+                temperatures = mgr.MonitorTemperature(1000, 0);
+            }
+
+            Assert.True(temperatures.Any());
         }
     }
 }
