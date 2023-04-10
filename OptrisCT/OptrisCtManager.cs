@@ -161,7 +161,10 @@ namespace OptrisCT
         /// <returns>Read serial number</returns>
         public int ReadSerialNumber()
         {
+            this.serialPort.Open();
             bool readResult = this.ExecuteReadCommand(OptrisCommands.ReadSerialNumber, 1000, 3, null);
+            this.serialPort.Close();
+
             if (!readResult)
             {
                 return 0;
@@ -178,7 +181,9 @@ namespace OptrisCT
         /// <returns>Read firmware version</returns>
         public int ReadFwVersion()
         {
+            this.serialPort.Open();
             bool readResult = this.ExecuteReadCommand(OptrisCommands.ReadFwVersion, 1000, 2, null);
+            this.serialPort.Close();
             if (!readResult)
             {
                 return 0;
@@ -194,7 +199,9 @@ namespace OptrisCT
         /// <returns>Read emissivity value</returns>
         public float ReadEmissivity()
         {
+            this.serialPort.Open();
             bool readResult = this.ExecuteReadCommand(OptrisCommands.ReadEmissivity, 1000, 2, null);
+            this.serialPort.Close();
             float readValue = ConvertToFloat(this.readBytes);
 
             // according to the documentation, the emissivity must be >= 0.0 and <= 1.1
@@ -215,7 +222,9 @@ namespace OptrisCT
             }
 
             byte[] byteValue = BitConverter.GetBytes((short)(value * 1000));
+            this.serialPort.Open();
             bool setResult = this.ExecuteWriteCommand(OptrisCommands.SetEmissivity, byteValue, 1000, 2);
+            this.serialPort.Close();
             if (!setResult)
             {
                 return false;
@@ -232,7 +241,9 @@ namespace OptrisCT
         /// <returns>read value</returns>
         public float ReadTransmissivity()
         {
+            this.serialPort.Open();
             bool readResult = this.ExecuteReadCommand(OptrisCommands.ReadTransmissivity, 1000, 2, null);
+            this.serialPort.Close();
             return !readResult ? float.MinValue : ConvertToFloat(this.readBytes);
         }
 
@@ -249,7 +260,9 @@ namespace OptrisCT
             }
 
             byte[] byteValue = BitConverter.GetBytes((short)(value * 1000));
+            this.serialPort.Open();
             bool setResult = this.ExecuteWriteCommand(OptrisCommands.SetTransmissivity, byteValue, 1000, 2);
+            this.serialPort.Close();
             if (!setResult)
             {
                 return false;
@@ -270,6 +283,7 @@ namespace OptrisCT
         {
             Dictionary<long, decimal> measurements = new Dictionary<long, decimal>();
 
+            this.serialPort.Open();
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
             while (stopwatch.ElapsedMilliseconds < durationMs)
@@ -280,6 +294,7 @@ namespace OptrisCT
                 }
             }
 
+            this.serialPort.Close();
             stopwatch.Stop();
             return measurements;
         }
@@ -311,20 +326,21 @@ namespace OptrisCT
             // and the multiAddress is a kind of broadcast address set to 0xB0
             this.multiAddress = 0xB0;
 
+            // we read two bytes for each address
+            short bytesToRead = (short)(2 * this.multiAddressList.Count);
+
+            // the index of the last address to read from, so subtract the 0xB0 to get the index
+            byte lastAddressIndex = (this.multiAddressList.Max());
+
+            // if we read the temperature in line mode we need to provide the checksum
+            byte checksum = CalculateChecksum(new List<byte>() { (byte)OptrisCommands.ReadTemperatureLineMode, lastAddressIndex });
+
+            List<byte> suffixBytes = new List<byte>() { lastAddressIndex, checksum };
+
+            this.serialPort.Open();
+            
             while (stopwatch.ElapsedMilliseconds < durationMs)
             {
-                // we read two bytes for each address
-                short bytesToRead = (short)(2 * this.multiAddressList.Count);
-
-                // the index of the last address to read from, so subtract the 0xB0 to get the index
-                byte lastAddressIndex = (this.multiAddressList.Max());
-
-
-                // if we read the temperature in line mode we need to provide the checksum
-                byte checksum = CalculateChecksum(new List<byte>() { (byte)OptrisCommands.ReadTemperatureLineMode, lastAddressIndex });
-
-                List<byte> suffixBytes = new List<byte>() { lastAddressIndex, checksum };
-
                 if (ExecuteReadCommand(OptrisCommands.ReadTemperatureLineMode, 1000, bytesToRead, suffixBytes.ToArray()))
                 {
                     decimal correctionValue = 0;
@@ -346,6 +362,8 @@ namespace OptrisCT
                     }
                 }
             }
+
+            this.serialPort.Close();
 
             stopwatch.Stop();
             return measurements;
@@ -370,8 +388,6 @@ namespace OptrisCT
                 Array.Copy(suffixBytes, 0, toSend, originalLength, suffixBytes.Length);
             }
 
-            this.serialPort.DataReceived += DataReceivedHandler;
-            this.serialPort.Open();
             this.readBytes.Clear();
             serialPort.Write(toSend, 0, toSend.Length);
 
@@ -380,9 +396,23 @@ namespace OptrisCT
             {
                 sleepCount++;
                 Thread.Sleep(WaitDelay);
+                // Read data from the serial port's BaseStream
+                byte[] buffer = new byte[1024];
+
+                try
+                {
+                    int bytesRead = serialPort.BaseStream.Read(buffer, 0, serialPort.BytesToRead);
+                    for (int i = 0; i < bytesRead; i++)
+                    {
+                        this.readBytes.Add(buffer[i]);
+                    }
+                }
+                catch (Exception)
+                {
+                    // ignored
+                }
             }
 
-            this.serialPort.Close();
             return this.readBytes.Count == byteCount;
         }
 
@@ -401,8 +431,6 @@ namespace OptrisCT
             byte checksum = CalculateChecksum(toSend.Skip(1));
             toSend.Add(checksum);
 
-            this.serialPort.DataReceived += DataReceivedHandler;
-            this.serialPort.Open();
             this.readBytes.Clear();
             serialPort.Write(toSend.ToArray(), 0, toSend.Count);
 
@@ -411,9 +439,22 @@ namespace OptrisCT
             {
                 sleepCount++;
                 Thread.Sleep(WaitDelay);
+                byte[] buffer = new byte[1024];
+
+                try
+                {
+                    int bytesRead = serialPort.BaseStream.Read(buffer, 0, serialPort.BytesToRead);
+                    for (int i = 0; i < bytesRead; i++)
+                    {
+                        this.readBytes.Add(buffer[i]);
+                    }
+                }
+                catch (Exception)
+                {
+                    // ignored
+                }
             }
 
-            this.serialPort.Close();
             return this.readBytes.Count == byteCount;
         }
 
@@ -489,47 +530,16 @@ namespace OptrisCT
 
             return (float)(data[0] * 256 + data[1]) / 1000;
         }
-
-        /// <summary>
-        /// Data handler
-        /// </summary>
-        /// <param name="sender">Sender (the serial port)</param>
-        /// <param name="e">Event</param>
-        private void DataReceivedHandler(object sender, SerialDataReceivedEventArgs e)
-        {
-            SerialPort sp = (SerialPort)sender;
-            if (!sp.IsOpen)
-            {
-                return;
-            }
-
-            byte[] b = new byte[1024];
-            try
-            {
-                int btr = sp.Read(b, 0, sp.BytesToRead);
-                for (int i = 0; i < btr; i++)
-                {
-                    this.readBytes.Add(b[i]);
-                }
-            }
-            catch (Exception)
-            {
-                // ignored
-            }
-        }
-
+        
         /// <summary>
         /// Cleanup resources
         /// </summary>
         public void Dispose()
         {
-            this.serialPort.DataReceived -= DataReceivedHandler;
             if (this.serialPort.IsOpen)
             {
                 this.serialPort.Close();
             }
-
-            GC.SuppressFinalize(this);
         }
     }
 }
